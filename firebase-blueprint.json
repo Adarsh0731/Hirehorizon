@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a candidate or an employer",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["candidate", "employer"] },
+        "name": { "type": "string" },
+        "bio": { "type": "string" },
+        "companyName": { "type": "string" },
+        "companyLogo": { "type": "string" },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "resumeUrl": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Job": {
+      "title": "Job",
+      "description": "A job posting",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "company": { "type": "string" },
+        "location": { "type": "string" },
+        "salary": { "type": "string" },
+        "type": { "type": "string", "enum": ["Full-time", "Part-time", "Contract", "Remote"] },
+        "employerId": { "type": "string" },
+        "postedAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "closed"] }
+      },
+      "required": ["title", "company", "employerId", "status"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "A candidate's application for a job",
+      "type": "object",
+      "properties": {
+        "jobId": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "shortlisted", "rejected"] },
+        "appliedAt": { "type": "string", "format": "date-time" },
+        "resumeUrl": { "type": "string" },
+        "coverLetter": { "type": "string" }
+      },
+      "required": ["jobId", "candidateId", "status"]
+    },
+    "SavedJob": {
+      "title": "SavedJob",
+      "description": "A job saved by a candidate",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "jobId": { "type": "string" },
+        "savedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "jobId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/jobs/{jobId}": {
+      "schema": "Job",
+      "description": "Job postings"
+    },
+    "/applications/{applicationId}": {
+      "schema": "Application",
+      "description": "Job applications"
+    },
+    "/users/{userId}/savedJobs/{jobId}": {
+      "schema": "SavedJob",
+      "description": "Jobs saved by candidates"
+    }
+  }
+}

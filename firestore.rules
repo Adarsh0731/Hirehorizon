@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.keys().size() >= 3 &&
+             data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 256 &&
+             data.role in ['candidate', 'employer'];
+    }
+
+    function isValidJob(data) {
+      return data.keys().hasAll(['title', 'companyName', 'employerId', 'status']) &&
+             data.employerId == request.auth.uid &&
+             data.title is string && data.title.size() <= 200 &&
+             data.description is string && data.description.size() <= 5000 &&
+             data.status in ['active', 'closed'];
+    }
+
+    function isValidApplication(data) {
+      return data.keys().hasAll(['jobId', 'candidateId', 'status', 'appliedAt']) &&
+             data.candidateId == request.auth.uid &&
+             data.jobId is string &&
+             data.status == 'pending';
+    }
+
+    // --- Collection Rules ---
+
+    // Test connection path
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Jobs (Public read access)
+    match /jobs/{jobId} {
+      allow read: if true; 
+      allow create: if isSignedIn() && isValidJob(incoming());
+      allow update: if isSignedIn() && existing().employerId == request.auth.uid && isValidJob(incoming());
+      allow delete: if isSignedIn() && existing().employerId == request.auth.uid;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read, get, list: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['name', 'bio', 'companyName', 'companyLogo', 'skills', 'resumeUrl', 'education', 'graduationYear', 'phone', 'location', 'updatedAt']);
+    }
+
+    // Applications
+    match /applications/{applicationId} {
+      allow read, get, list: if isSignedIn() && (
+        resource.data.candidateId == request.auth.uid || 
+        resource.data.employerId == request.auth.uid
+      );
+      allow create: if isSignedIn() && isValidApplication(incoming());
+      allow update: if isSignedIn() && (
+        (resource.data.employerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+      );
+    }
+
+    // Saved Jobs
+    match /users/{userId}/savedJobs/{jobId} {
+      allow read, get, list, write: if isOwner(userId);
+    }
+
+    // Default deny - keep at the end
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
